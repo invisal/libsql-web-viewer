@@ -23,7 +23,17 @@ type PromiseResolveReject = {
   reject: (value: string) => void;
 };
 
-class IframeConnection {
+abstract class EmbedConnection {
+  abstract listen(): void;
+  abstract custom<PayloadType = unknown, ResponseType = unknown>(
+    event: string,
+    payload?: PayloadType
+  ): Promise<ResponseType>;
+  abstract query(stmt: string): Promise<DatabaseResultSet>;
+  abstract transaction(stmts: string[]): Promise<DatabaseResultSet[]>;
+}
+
+class IframeConnection implements EmbedConnection {
   protected counter = 0;
   protected queryPromise: Record<number, PromiseResolveReject> = {};
 
@@ -40,6 +50,25 @@ class IframeConnection {
 
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
+  }
+
+  custom<PayloadType = unknown, ResponseType = unknown>(
+    event: string,
+    payload?: PayloadType
+  ): Promise<ResponseType> {
+    return new Promise((resolve, reject) => {
+      const id = ++this.counter;
+      this.queryPromise[id] = { resolve, reject };
+
+      window.parent.postMessage(
+        {
+          type: event,
+          id,
+          payload,
+        },
+        "*"
+      );
+    });
   }
 
   query(stmt: string): Promise<DatabaseResultSet> {
@@ -75,9 +104,23 @@ class IframeConnection {
   }
 }
 
-class ElectronConnection {
+class ElectronConnection implements EmbedConnection {
   listen() {
     // do nothing here
+  }
+
+  custom<PayloadType = unknown, ResponseType = unknown>(
+    event: string,
+    payload?: PayloadType
+  ): Promise<ResponseType> {
+    if (window.outerbaseIpc.connectCustomEvent) {
+      return window.outerbaseIpc.connectCustomEvent(
+        event,
+        payload
+      ) as Promise<ResponseType>;
+    }
+
+    return Promise.reject("Not implemented");
   }
 
   query(stmt: string): Promise<DatabaseResultSet> {
@@ -89,14 +132,21 @@ class ElectronConnection {
   }
 }
 
-export class IframeSQLiteDriver extends SqliteLikeBaseDriver {
-  protected conn =
-    typeof window !== "undefined" && window?.outerbaseIpc
-      ? new ElectronConnection()
-      : new IframeConnection();
+export function detectEmbedConnection() {
+  if (typeof window !== "undefined" && window?.outerbaseIpc) {
+    return new ElectronConnection();
+  } else {
+    return new IframeConnection();
+  }
+}
 
-  constructor(options?: { supportPragmaList: boolean }) {
+export class IframeSQLiteDriver extends SqliteLikeBaseDriver {
+  constructor(
+    public conn: EmbedConnection,
+    options?: { supportPragmaList: boolean }
+  ) {
     super();
+
     if (options?.supportPragmaList !== undefined) {
       this.supportPragmaList = options.supportPragmaList;
     }
@@ -120,10 +170,9 @@ export class IframeSQLiteDriver extends SqliteLikeBaseDriver {
 }
 
 export class IframeMySQLDriver extends MySQLLikeDriver {
-  protected conn =
-    typeof window !== "undefined" && window?.outerbaseIpc
-      ? new ElectronConnection()
-      : new IframeConnection();
+  constructor(public conn: EmbedConnection) {
+    super();
+  }
 
   listen() {
     this.conn.listen();
@@ -143,10 +192,9 @@ export class IframeMySQLDriver extends MySQLLikeDriver {
 }
 
 export class IframePostgresDriver extends PostgresLikeDriver {
-  protected conn =
-    typeof window !== "undefined" && window?.outerbaseIpc
-      ? new ElectronConnection()
-      : new IframeConnection();
+  constructor(public conn: EmbedConnection) {
+    super();
+  }
 
   listen() {
     this.conn.listen();

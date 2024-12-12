@@ -1,12 +1,20 @@
 "use client";
 import { Studio } from "@/components/gui/studio";
-import { IframeMySQLDriver } from "@/drivers/iframe-driver";
+import {
+  detectEmbedConnection,
+  IframeMySQLDriver,
+} from "@/drivers/iframe-driver";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
 
 export default function EmbedPageClient() {
   const searchParams = useSearchParams();
-  const driver = useMemo(() => new IframeMySQLDriver(), []);
+
+  const embedConnection = useMemo(() => detectEmbedConnection(), []);
+  const driver = useMemo(
+    () => new IframeMySQLDriver(embedConnection),
+    [embedConnection]
+  );
 
   useEffect(() => {
     return driver.listen();

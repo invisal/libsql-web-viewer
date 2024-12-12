@@ -1,14 +1,19 @@
 "use client";
 import { Studio } from "@/components/gui/studio";
-import { IframeSQLiteDriver } from "@/drivers/iframe-driver";
+import {
+  detectEmbedConnection,
+  IframeSQLiteDriver,
+} from "@/drivers/iframe-driver";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
 
 export default function EmbedPageClient() {
   const searchParams = useSearchParams();
+
+  const embedConnection = useMemo(() => detectEmbedConnection(), []);
   const driver = useMemo(
-    () => new IframeSQLiteDriver({ supportPragmaList: false }),
-    []
+    () => new IframeSQLiteDriver(embedConnection, { supportPragmaList: false }),
+    [embedConnection]
   );
 
   useEffect(() => {

@@ -1,12 +1,20 @@
 "use client";
 import { Studio } from "@/components/gui/studio";
-import { IframePostgresDriver } from "@/drivers/iframe-driver";
+import {
+  detectEmbedConnection,
+  IframePostgresDriver,
+} from "@/drivers/iframe-driver";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
 
 export default function EmbedPageClient() {
   const searchParams = useSearchParams();
-  const driver = useMemo(() => new IframePostgresDriver(), []);
+
+  const embedConnection = useMemo(() => detectEmbedConnection(), []);
+  const driver = useMemo(
+    () => new IframePostgresDriver(embedConnection),
+    [embedConnection]
+  );
 
   useEffect(() => {
     return driver.listen();
