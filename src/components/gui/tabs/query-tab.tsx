@@ -1,5 +1,5 @@
 import { format } from "sql-formatter";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LucideGrid,
   LucideMessageSquareWarning,
@@ -51,6 +51,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { isExplainQueryPlan } from "../query-explanation";
 import ExplainResultTab from "../tabs-result/explain-result-tab";
+import { tokenizeSql } from "@/lib/sql/tokenizer";
+import { QueryPlaceholder } from "./query-placeholder";
+import { escapeSqlValue } from "@/drivers/sqlite/sql-helper";
 
 interface QueryWindowProps {
   initialCode?: string;
@@ -84,6 +87,31 @@ export default function QueryWindow({
     initialNamespace ?? "Unsaved Query"
   );
   const [savedKey, setSavedKey] = useState<string | undefined>(initialSavedKey);
+  const [placeHolders, setPlaceHolders] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const editorState = editorRef.current?.view?.state;
+      if (!editorState) return;
+      const finalStatements = splitSqlQuery(editorState).map((q) => q.text);
+      const newPlaceholders: Record<string, string> = {};
+      for (const statement of finalStatements) {
+        const token = tokenizeSql(statement);
+        const placeholders = token
+          .filter((t) => t.type === "PLACEHOLDER")
+          .map((t) => t.value.split(":")[1]);
+        for (const placeholder of placeholders) {
+          newPlaceholders[placeholder] = "";
+        }
+      }
+      for (const newKey of Object.keys(newPlaceholders)) {
+        newPlaceholders[newKey] = placeHolders[newKey] ?? "";
+      }
+      setPlaceHolders(newPlaceholders);
+    }, 1000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
 
   const onFormatClicked = () => {
     try {
@@ -136,6 +164,29 @@ export default function QueryWindow({
       setData(undefined);
       setProgress(undefined);
       setQueryTabIndex(0);
+
+      //inject placeholders
+      for (const statement of finalStatements) {
+        const token = tokenizeSql(statement);
+        const variables = token
+          .filter((t) => t.type === "PLACEHOLDER")
+          .map((t) => t.value.split(":")[1]);
+        if (
+          variables.length > 0 &&
+          variables.some((p) => placeHolders[p] === "")
+        ) {
+          toast.error("Please fill in all placeholders");
+          return;
+        }
+      }
+      for (const key of Object.keys(placeHolders)) {
+        finalStatements = finalStatements.map((s) =>
+          s.replace(
+            new RegExp(`:${key}`, "g"),
+            escapeSqlValue(placeHolders[key])
+          )
+        );
+      }
 
       multipleQuery(databaseDriver, finalStatements, (currentProgress) => {
         setProgress(currentProgress);
@@ -347,6 +398,14 @@ export default function QueryWindow({
               <div className="grow items-center flex text-xs mr-2 gap-2 pl-4">
                 <div>Ln {lineNumber}</div>
                 <div>Col {columnNumber + 1}</div>
+              </div>
+              <div>
+                {Object.keys(placeHolders).length > 0 && (
+                  <QueryPlaceholder
+                    placeHolders={placeHolders}
+                    onChange={setPlaceHolders}
+                  />
+                )}
               </div>
 
               <Tooltip>
