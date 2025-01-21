@@ -1,7 +1,9 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import {
+  ComponentType,
   Dispatch,
+  ReactElement,
   SetStateAction,
   useCallback,
   useEffect,
@@ -23,6 +25,8 @@ import QuickConnect from "./quick-connect";
 import { LucideChevronDown, LucideSearch } from "lucide-react";
 import DriverDropdown from "./driver-dropdown";
 import { cn } from "@/lib/utils";
+import { MySQLIcon, SQLiteIcon } from "@/components/icons/outerbase-icon";
+import { Icon } from "@phosphor-icons/react";
 
 function ConnectionListSection({
   data,
@@ -78,6 +82,28 @@ function ConnectionListSection({
       )}
       {body}
     </>
+  );
+}
+
+function HomeActionButton({
+  title,
+  description,
+  icon: IconComponent,
+}: {
+  title: string;
+  description: string;
+  icon: ComponentType<{ className?: string }>;
+}) {
+  return (
+    <div className="text-xs p-4 pr-8 bg-secondary hover:bg-blue-100  rounded-lg flex gap-2 items-center cursor-pointer">
+      <div className="w-10 h-10 rounded-full flex items-center justify-center">
+        <IconComponent className="w-6 h-6" />
+      </div>
+      <div className="flex flex-col">
+        <div className="font-semibold">{title}</div>
+        <div className="text-muted-foreground">{description}</div>
+      </div>
+    </div>
   );
 }
 
@@ -211,14 +237,10 @@ export default function ConnectionList({
   }
 
   return (
-    <div className="flex flex-col flex-1 max-w-[1000px] mx-auto pb-12">
-      <div className="flex mt-12 gap-2">
-        <h1 className="flex-1 flex items-center font-semibold text-xl text-primary">
-          Bases
-        </h1>
-
-        <div>
-          <div className="border rounded overflow-hidden flex items-center grow mx-2 bg-background">
+    <div className="flex flex-col flex-1 p-8">
+      <div className="flex gap-2 mb-6">
+        {/* <div>
+          <div className="border rounded overflow-hidden flex items-center grow bg-background">
             <div className="text-sm px-2 h-full flex items-center">
               <LucideSearch className="h-4 w-4 text-black dark:text-white" />
             </div>
@@ -230,7 +252,7 @@ export default function ConnectionList({
               placeholder="Search base name"
             />
           </div>
-        </div>
+        </div> */}
 
         <DriverDropdown onSelect={setShowAddConnection}>
           <Button variant={"default"}>
@@ -238,13 +260,23 @@ export default function ConnectionList({
             <LucideChevronDown className="ml-2 w-4 h-4" />
           </Button>
         </DriverDropdown>
-
-        <DriverDropdown onSelect={setQuickConnect}>
-          <Button variant={"secondary"}>Quick Connect</Button>
-        </DriverDropdown>
       </div>
 
       {dialogComponent}
+
+      <div className="flex gap-2">
+        <HomeActionButton
+          icon={SQLiteIcon}
+          title="SQLite Playground"
+          description="Launch in-browser sqlite database"
+        />
+
+        <HomeActionButton
+          icon={MySQLIcon}
+          title="MySQL Playground"
+          description="Launch MySQL temporary instance"
+        />
+      </div>
 
       <ConnectionListSection
         name={user ? "Local" : ""}

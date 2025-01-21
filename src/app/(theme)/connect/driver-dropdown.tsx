@@ -32,7 +32,7 @@ export default function DriverDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      <DropdownMenuContent className="w-[500px]">
+      <DropdownMenuContent className="w-[500px]" side="bottom" align="start">
         <div className="flex">
           <div className="w-1/2 border-r pr-1">
             <span className="block text-xs ml-2 mb-2 mt-2 font-semibold text-muted-foreground">
