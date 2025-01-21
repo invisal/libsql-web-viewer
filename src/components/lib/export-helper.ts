@@ -140,7 +140,7 @@ export function exportDataAsDelimitedText(
     escapeDelimitedValue(v, fieldSeparator, lineTerminator, textEncloser)
   );
   const headerLine = escapedHeaders.join(fieldSeparator);
-  result.push(headerLine);
+  if (headers.length > 0) result.push(headerLine);
 
   // Add records
   for (const record of records) {
@@ -239,4 +239,9 @@ function copyToClipboard(content: string) {
     .writeText(content)
     .then(() => toast.success("Copied to clipboard"))
     .catch(() => toast.error("Failed to copy to clipboard"));
+}
+
+export function convertExcelStringToArray(data: string): string[][] {
+  const lines = data.split("\r\n");
+  return lines.map((line) => line.split("\t"));
 }

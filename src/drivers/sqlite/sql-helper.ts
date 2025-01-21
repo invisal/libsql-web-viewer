@@ -86,7 +86,7 @@ export function escapeDelimitedValue(
   encloser: string
 ): string {
   if (value === null || value === undefined) {
-    return "";
+    return "NULL";
   }
 
   const stringValue = value.toString();
