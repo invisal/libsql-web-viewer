@@ -90,11 +90,18 @@ export function Studio({
     };
   }, [name, color, onBack, finalExtensionManager, containerClassName]);
 
+  const saveDocDriver = useMemo(() => {
+    if (window.outerbaseIpc.docs) {
+      return window.outerbaseIpc.docs;
+    }
+    return docDriver;
+  }, [docDriver]);
+
   return (
     <DriverProvider
       driver={proxyDriver}
       collaborationDriver={collaboration}
-      docDriver={docDriver}
+      docDriver={saveDocDriver}
     >
       <ConfigProvider config={config}>
         <CommonDialogProvider>
