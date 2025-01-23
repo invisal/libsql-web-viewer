@@ -1,17 +1,40 @@
 "use client";
-import { Button } from "@/components/ui/button";
 import ConnectionList from "./connection-list";
-import Link from "next/link";
-import { LucideMoon, LucideSun } from "lucide-react";
+import { LucideFolder, LucideMoon, LucideSun } from "lucide-react";
 import { User } from "lucia";
 import { useTheme } from "@/context/theme-provider";
+import { Button } from "@/components/ui/button";
+import WorkspaceSidebarList from "./workspace-sidebar-list";
+import { useOuterbaseWorkspaceList } from "./workspace-hook";
+import { useState } from "react";
+import WorkspaceBaseList from "./workspace-base-list";
+
+interface HomeSidemenuItemProps {
+  text: string;
+  selected?: boolean;
+}
+
+function HomeSidemenuItem({ text }: HomeSidemenuItemProps) {
+  return (
+    <div className="flex cursor-pointer items-center p-2 px-4 text-xs hover:bg-secondary">
+      <LucideFolder className="mr-2 h-4 w-4" />
+      {text}
+    </div>
+  );
+}
 
 export default function ConnectBody({ user }: Readonly<{ user: User | null }>) {
   const { theme, toggleTheme } = useTheme();
+  const { workspaces } = useOuterbaseWorkspaceList();
+  const [selectedWorkspace, setSelectedWorkspace] = useState<string>("local");
+
+  const currentWorkspace = workspaces.find(
+    (workspace) => workspace.id === selectedWorkspace
+  );
 
   return (
-    <div className="min-h-screen w-screen bg-zinc-50 dark:bg-background">
-      <div className="sticky top-0 border-b p-2 bg-background flex">
+    <div className="min-h-screen w-screen">
+      {/* <div className="sticky top-0 border-b p-2 bg-background flex">
         <Link className="h-12 w-12 flex justify-center items-center" href="/">
           <svg
             fill="currentColor"
@@ -43,9 +66,57 @@ export default function ConnectBody({ user }: Readonly<{ user: User | null }>) {
             </Link>
           )}
         </div>
-      </div>
+      </div> */}
 
-      <ConnectionList user={user} />
+      <div className="flex min-h-screen">
+        <div className="flex w-[250px] flex-shrink-0 flex-col border-r bg-background">
+          <div className="flex h-[50px] items-center border-b px-4 py-2">
+            <div className="flex-1 text-sm font-bold">Outerbase</div>
+            <Button
+              size={"icon"}
+              variant={"ghost"}
+              onClick={() => toggleTheme()}
+            >
+              {theme === "dark" ? (
+                <LucideMoon className="h-4 w-4" />
+              ) : (
+                <LucideSun className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+
+          <WorkspaceSidebarList
+            workspaces={workspaces}
+            onSelectChange={setSelectedWorkspace}
+            selected={selectedWorkspace}
+          />
+
+          <div className="flex flex-col gap-4 border-t p-4 text-xs">
+            <h3 className="font-bold">Legacy Login</h3>
+
+            <Button size={"sm"} variant={"secondary"}>
+              Login
+            </Button>
+          </div>
+
+          <div className="border-t py-2">
+            <h3 className="px-4 py-2 text-xs font-bold text-primary">
+              Migration
+            </h3>
+            <HomeSidemenuItem text="Import Connections" />
+            <HomeSidemenuItem text="Export Connections" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex h-[50px] items-center gap-2 border-b px-8 text-sm">
+            Bases
+          </div>
+          {selectedWorkspace === "local" && <ConnectionList user={user} />}
+          {currentWorkspace && (
+            <WorkspaceBaseList workspace={currentWorkspace} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

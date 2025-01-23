@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 
 interface SidebarMenuItemProps {
@@ -17,9 +18,14 @@ export function SidebarMenuItem({
   onClick,
   icon: IconComponent,
   href,
+  selected,
 }: SidebarMenuItemProps) {
-  const className =
-    "flex p-2 pl-4 text-xs hover:cursor-pointer hover:bg-secondary";
+  const className = cn(
+    "flex p-2 pl-4 text-xs hover:cursor-pointer hover:bg-muted",
+    {
+      "bg-secondary": selected,
+    }
+  );
 
   const body = (
     <>
@@ -44,6 +50,14 @@ export function SidebarMenuItem({
     <button className={className} onClick={onClick}>
       {body}
     </button>
+  );
+}
+
+export function SidebarLoadingMenuItem() {
+  return (
+    <div className="flex h-[32px] items-center px-4 text-xs">
+      <div className="h-4 w-full animate-pulse rounded bg-accent duration-300"></div>
+    </div>
   );
 }
 
