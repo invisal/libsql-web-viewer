@@ -1,213 +1,187 @@
-import { LucideCode, LucideCopy, LucidePlus, LucideSave } from "lucide-react";
-import { Separator } from "../../ui/separator";
-import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
-import { Button, buttonVariants } from "../../ui/button";
-import SchemaEditorColumnList from "./schema-editor-column-list";
+import { InlineTab, InlineTabItem } from "@/components/inline-tab";
+import {
+  ColumnTypeSelector,
+  DatabaseTableSchemaChange,
+} from "@/drivers/base-driver";
+import { produce } from "immer";
+import { Dispatch, SetStateAction, useCallback, useState } from "react";
 import { Input } from "../../ui/input";
+import SchemaEditorColumnList from "./schema-editor-column-list";
 import SchemaEditorConstraintList from "./schema-editor-constraint-list";
-import { ColumnsProvider } from "./column-provider";
-import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
-import CodePreview from "../code-preview";
-import { toast } from "sonner";
-import { DatabaseTableSchemaChange } from "@/drivers/base-driver";
-import { useDatabaseDriver } from "@/context/driver-provider";
+import { SchemaEditorContextProvider } from "./schema-editor-prodiver";
 import SchemaNameSelect from "./schema-name-select";
-import { checkSchemaChange } from "@/lib/sql/sql-generate.schema";
 
 interface Props {
-  onSave: () => void;
-  onDiscard: () => void;
   value: DatabaseTableSchemaChange;
   onChange: Dispatch<SetStateAction<DatabaseTableSchemaChange>>;
+
+  /**
+   * Some database does not support editing existing column such as Sqlite
+   */
+  disabledEditExistingColumn?: boolean;
+
+  /**
+   * Tell the editor to always use table constraint instead of column constraint
+   * for primary key and foreign key.
+   *
+   * ```sql
+   * -- Using column constraint style
+   * CREATE TABLE exampleTable(
+   *   id INTEGER PRIMARY KEY
+   * )
+   * ```
+   * To
+   * ```sql
+   * -- Using table constraint style
+   * CREATE TABLE exampleTable(
+   *  id INTEGER,
+   *  PRIMARY KEY(id)
+   * )
+   * ```
+   */
+  alwayUseTableConstraint?: boolean;
+
+  /**
+   * Provide column data type suggestion
+   */
+  dataTypeSuggestion: ColumnTypeSelector;
+  collations?: string[];
 }
 
 export default function SchemaEditor({
   value,
   onChange,
-  onSave,
-  onDiscard,
+  disabledEditExistingColumn,
+  dataTypeSuggestion,
+  collations,
 }: Readonly<Props>) {
-  const { databaseDriver } = useDatabaseDriver();
+  const [selectedTab, setSelectedTab] = useState(0);
   const isCreateScript = value.name.old === "";
 
   const onAddColumn = useCallback(() => {
-    const newColumn =
-      value.columns.length === 0
-        ? {
-          name: "id",
-          type: databaseDriver.columnTypeSelector.idTypeName ?? "INTEGER",
-          constraint: {
-            primaryKey: true,
-          },
-        }
-        : {
-          name: "column",
-          type: databaseDriver.columnTypeSelector.textTypeName ?? "TEXT",
-          constraint: {},
-        };
+    onChange(
+      produce(value, (draft) => {
+        let columnName = value.columns.length === 0 ? "id" : "column";
 
-    onChange({
-      ...value,
-      columns: [
-        ...value.columns,
-        {
+        // Dictorary of used column name
+        const columnNameSet = new Set(
+          value.columns.map((c) => (c.new?.name ?? c.old?.name)?.toLowerCase())
+        );
+
+        if (columnNameSet.has(columnName)) {
+          // Finding the next available column name
+          let columnSuffix = 2;
+          while (columnNameSet.has(`${columnName}${columnSuffix}`)) {
+            columnSuffix++;
+          }
+
+          columnName = `${columnName}${columnSuffix}`;
+        }
+
+        const newColumn =
+          value.columns.length === 0
+            ? {
+                name: "id",
+                type: dataTypeSuggestion.idTypeName ?? "INTEGER",
+              }
+            : {
+                name: columnName,
+                type: dataTypeSuggestion.textTypeName ?? "TEXT",
+                constraint: {},
+              };
+
+        draft.columns.push({
           key: window.crypto.randomUUID(),
           old: null,
           new: newColumn,
-        },
-      ],
-    });
-  }, [value, onChange, databaseDriver]);
+        });
 
-  const hasChange = checkSchemaChange(value);
-
-  const previewScript = useMemo(() => {
-    return databaseDriver.createUpdateTableSchema(value).join(";\n");
-  }, [value, databaseDriver]);
-
-  const editorOptions = useMemo(() => {
-    return {
-      collations: databaseDriver.getCollationList(),
-    };
-  }, [databaseDriver]);
+        if (value.columns.length === 0) {
+          draft.constraints.push({
+            id: window.crypto.randomUUID(),
+            old: null,
+            new: {
+              primaryKey: true,
+              primaryColumns: ["id"],
+            },
+          });
+        }
+      })
+    );
+  }, [value, onChange, dataTypeSuggestion]);
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <>
       <div className="grow-0 shrink-0">
-        <div className="p-1 flex gap-2">
-          <Button
-            variant="ghost"
-            onClick={onSave}
-            disabled={!hasChange || !value.name?.new || !value.schemaName}
-            size={"sm"}
-          >
-            <LucideSave className="w-4 h-4 mr-2" />
-            Save
-          </Button>
-          <Button
-            size={"sm"}
-            variant="ghost"
-            onClick={onDiscard}
-            disabled={!hasChange}
-            className="text-red-500"
-          >
-            Discard Change
-          </Button>
-
-          <div>
-            <Separator orientation="vertical" />
-          </div>
-
-          <Button variant="ghost" onClick={onAddColumn} size={"sm"}>
-            <LucidePlus className="w-4 h-4 mr-1" />
-            Add Column
-          </Button>
-
-          <div>
-            <Separator orientation="vertical" />
-          </div>
-
-          <Popover>
-            <PopoverTrigger>
-              <div className={buttonVariants({ size: "sm", variant: "ghost" })}>
-                <LucideCode className="w-4 h-4 mr-1" />
-                SQL Preview
-              </div>
-            </PopoverTrigger>
-            <PopoverContent style={{ width: 500 }}>
-              <div className="text-xs font-semibold mb-1">SQL Preview</div>
-              <div style={{ maxHeight: 400 }} className="overflow-y-auto">
-                <CodePreview code={previewScript} />
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          {value.createScript && (
-            <Popover>
-              <PopoverTrigger>
-                <div
-                  className={buttonVariants({ size: "sm", variant: "ghost" })}
-                >
-                  <LucideCode className="w-4 h-4 mr-1" />
-                  Create Script
-                </div>
-              </PopoverTrigger>
-              <PopoverContent style={{ width: 500 }}>
-                <Button
-                  variant={"outline"}
-                  size="sm"
-                  onClick={() => {
-                    toast.success("Copied create script successfully");
-                    window.navigator.clipboard.writeText(
-                      value.createScript ?? ""
-                    );
-                  }}
-                >
-                  <LucideCopy className="w-4 h-4 mr-2" />
-                  Copy
-                </Button>
-                <div
-                  style={{ maxHeight: 400 }}
-                  className="overflow-y-auto mt-2"
-                >
-                  <CodePreview code={value.createScript} />
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
-
         <div className="flex items-center mx-3 mt-3 mb-4 ml-5 gap-2">
           <div>
-            <div className="text-xs font-medium mb-1">Table Name</div>
             <Input
               placeholder="Table Name"
               value={value.name.new ?? value.name.old ?? ""}
               onChange={(e) => {
-                onChange({
-                  ...value,
-                  name: {
-                    ...value.name,
-                    new: e.currentTarget.value,
-                  },
-                });
+                onChange(
+                  produce(value, (draft) => {
+                    draft.name.new = e.target.value;
+                  })
+                );
               }}
               className="w-[200px]"
             />
           </div>
           <div>
-            <div className="text-xs font-medium mb-1">Schema</div>
             <SchemaNameSelect
               readonly={!isCreateScript}
               value={value.schemaName}
               onChange={(selectedSchema) => {
-                onChange({ ...value, schemaName: selectedSchema });
+                onChange(
+                  produce(value, (draft) => {
+                    draft.schemaName = selectedSchema;
+                  })
+                );
               }}
             />
           </div>
         </div>
-        <Separator />
       </div>
       <div className="grow overflow-y-auto">
-        <SchemaEditorColumnList
-          columns={value.columns}
-          onChange={onChange}
-          onAddColumn={onAddColumn}
-          schemaName={value.schemaName}
-          options={editorOptions}
-          disabledEditExistingColumn={
-            !databaseDriver.getFlags().supportModifyColumn
-          }
-        />
-        <ColumnsProvider value={value.columns}>
-          <SchemaEditorConstraintList
-            schemaName={value.schemaName}
-            constraints={value.constraints}
-            onChange={onChange}
-            disabled={!isCreateScript}
-          />
-        </ColumnsProvider>
+        <SchemaEditorContextProvider
+          value={value.columns}
+          suggestion={dataTypeSuggestion}
+          collations={collations ?? []}
+        >
+          <InlineTab selected={selectedTab} onChange={setSelectedTab}>
+            <InlineTabItem
+              title={
+                value.columns.length > 0
+                  ? `Columns (${value.columns.length})`
+                  : "Columns"
+              }
+            >
+              <SchemaEditorColumnList
+                value={value}
+                onChange={onChange}
+                onAddColumn={onAddColumn}
+                disabledEditExistingColumn={disabledEditExistingColumn}
+              />
+            </InlineTabItem>
+            <InlineTabItem
+              title={
+                value.constraints.length > 0
+                  ? `Constraints (${value.constraints.length})`
+                  : "Constraints"
+              }
+            >
+              <SchemaEditorConstraintList
+                schemaName={value.schemaName}
+                constraints={value.constraints}
+                onChange={onChange}
+                disabled={!isCreateScript}
+              />
+            </InlineTabItem>
+            <InlineTabItem title="Indexes">Indexes</InlineTabItem>
+          </InlineTab>
+        </SchemaEditorContextProvider>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,6 +1,29 @@
-import { useCallback, useEffect, useState } from "react";
 import ResultTable from "@/components/gui/query-result-table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useAutoComplete } from "@/context/auto-complete-provider";
+import { useDatabaseDriver } from "@/context/driver-provider";
+import { useSchema } from "@/context/schema-provider";
+import {
+  ColumnSortOption,
+  DatabaseResultStat,
+  DatabaseTableSchema,
+} from "@/drivers/base-driver";
+import { KEY_BINDING } from "@/lib/key-matcher";
+import { commitChange } from "@/lib/sql/sql-execute-helper";
+import { AlertDialogTitle } from "@radix-ui/react-alert-dialog";
 import {
   LucideArrowLeft,
   LucideArrowRight,
@@ -10,38 +33,15 @@ import {
   LucideRefreshCcw,
   LucideSaveAll,
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { commitChange } from "@/lib/sql/sql-execute-helper";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-} from "@/components/ui/alert-dialog";
-import {
-  ColumnSortOption,
-  DatabaseResultStat,
-  DatabaseTableSchema,
-} from "@/drivers/base-driver";
-import { useAutoComplete } from "@/context/auto-complete-provider";
-import OpacityLoading from "../loading-opacity";
-import OptimizeTableState from "../table-optimized/OptimizeTableState";
-import { useDatabaseDriver } from "@/context/driver-provider";
-import ResultStats from "../result-stat";
-import useTableResultColumnFilter from "../table-result/filter-column";
-import { AlertDialogTitle } from "@radix-ui/react-alert-dialog";
-import { useCurrentTab } from "../windows-tab";
-import { KEY_BINDING } from "@/lib/key-matcher";
-import { Toolbar, ToolbarButton } from "../toolbar";
+import { useCallback, useEffect, useState } from "react";
 import AggregateResultButton from "../aggregate-result/aggregate-result-button";
 import ExportResultButton from "../export/export-result-button";
-import { useSchema } from "@/context/schema-provider";
+import OpacityLoading from "../loading-opacity";
+import ResultStats from "../result-stat";
+import OptimizeTableState from "../table-optimized/OptimizeTableState";
+import useTableResultColumnFilter from "../table-result/filter-column";
+import { Toolbar, ToolbarButton } from "../toolbar";
+import { useCurrentTab } from "../windows-tab";
 
 interface TableDataContentProps {
   tableName: string;

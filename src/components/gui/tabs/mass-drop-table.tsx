@@ -1,9 +1,5 @@
 import { SelectableTable } from "@/components/selectable-table";
-import { useSchema } from "@/context/schema-provider";
-import { DatabaseSchemaItem } from "@/drivers/base-driver";
-import { Check, Spinner, Table, Trash, XCircle } from "@phosphor-icons/react";
-import { ReactElement, useCallback, useEffect, useState } from "react";
-import { Toolbar, ToolbarButton } from "../toolbar";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +7,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { useDatabaseDriver } from "@/context/driver-provider";
+import { useSchema } from "@/context/schema-provider";
+import { DatabaseSchemaItem } from "@/drivers/base-driver";
+import { Check, Spinner, Table, Trash, XCircle } from "@phosphor-icons/react";
+import { ReactElement, useCallback, useEffect, useState } from "react";
+import { Toolbar, ToolbarButton } from "../toolbar";
 
 function ConfirmDialog({
   selectedItems,
@@ -37,14 +37,14 @@ function ConfirmDialog({
 
         <div className="text-sm">
           You are about to drop the following tables.
-          <div className="font-mono gap-2 flex flex-wrap my-2">
+          <div className="my-2 flex flex-wrap gap-2 font-mono">
             {selectedItems.map((t) => (
-              <div className="p-1 bg-muted rounded" key={t.name}>
+              <div className="rounded bg-muted p-1" key={t.name}>
                 {t.name}
               </div>
             ))}
           </div>
-          <p className="text-2xl text-primary font-serif my-2 mt-8">
+          <p className="my-2 mt-8 font-serif text-2xl text-primary">
             ln(x) + e<sup>x-1</sup> - cos(x) = 0
           </p>
           <p className="my-2">Solve this equaltion or type confirm</p>
@@ -168,27 +168,27 @@ export default function MassDropTableTab() {
 
       if (status === "Failed")
         statusIcon = (
-          <XCircle size={16} className="text-red-500 mr-2 inline-block" />
+          <XCircle size={16} className="mr-2 inline-block text-red-500" />
         );
       else if (status.includes("..."))
         statusIcon = (
-          <Spinner size={16} className="mr-2 animate-spin inline-block" />
+          <Spinner size={16} className="mr-2 inline-block animate-spin" />
         );
       else if (status === "Dropped" || status === "Emptied")
         statusIcon = (
-          <Check size={16} className="text-green-500 mr-2 inline-block" />
+          <Check size={16} className="mr-2 inline-block text-green-500" />
         );
 
       return (
         <>
-          <td className="py-2 px-2 h-[40px] w-[300px] border-b">
+          <td className="h-[40px] w-[300px] border-b px-2 py-2">
             <Table size={16} className="mr-2 inline-block" />
             {t.name}
           </td>
-          <td className="py-2 px-2 h-[40px] w-[100px] border-b capitalize">
+          <td className="h-[40px] w-[100px] border-b px-2 py-2 capitalize">
             {t.type}
           </td>
-          <td className="py-2 px-2 h-[40px] border-b">
+          <td className="h-[40px] border-b px-2 py-2">
             {statusIcon}
             {status}
           </td>
@@ -217,7 +217,7 @@ export default function MassDropTableTab() {
       )}
 
       <div className="border-b pb-1">
-        <h1 className="text-lg font-semibold text-primary p-4 mb-1 border-b">
+        <h1 className="mb-1 border-b p-4 text-lg font-semibold text-primary">
           Drop & Empty Multiple Tables
         </h1>
 
@@ -225,7 +225,7 @@ export default function MassDropTableTab() {
           <Toolbar>
             <ToolbarButton
               disabled={selectedItems.length === 0 || completed}
-              icon={<Trash size={16} className="text-red-500" />}
+              icon={<Trash />}
               text="Drop Selected Table"
               onClick={dropSelectedTableClicked}
               destructive
@@ -240,7 +240,7 @@ export default function MassDropTableTab() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-scroll relative">
+      <div className="relative flex-1 overflow-scroll">
         <SelectableTable
           headers={[
             { key: "name", text: "Name", width: "300px" },

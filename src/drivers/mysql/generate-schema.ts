@@ -7,7 +7,7 @@ import {
   DatabaseTriggerSchema,
 } from "../base-driver";
 
-import { omit, isEqual } from "lodash";
+import { isEqual, omit } from "lodash";
 
 function wrapParen(str: string) {
   if (str.toUpperCase() === "NULL") return str;
@@ -102,7 +102,7 @@ function generateCreateColumn(
       [
         "REFERENCES",
         driver.escapeId(foreignTableName) +
-        `(${driver.escapeId(foreignColumnName)})`,
+          `(${driver.escapeId(foreignColumnName)})`,
       ].join(" ")
     );
   }
@@ -122,6 +122,7 @@ function generateConstraintScript(
     return `CHECK (${con.checkExpression})`;
   } else if (con.foreignKey) {
     return (
+      `CONSTRAINT ${driver.escapeId(con.name ?? `fk_${driver.escapeId}`)} ` +
       `FOREIGN KEY (${con.foreignKey.columns?.map(driver.escapeId).join(", ")}) ` +
       `REFERENCES ${driver.escapeId(con.foreignKey.foreignTableName ?? "")} ` +
       `(${con.foreignKey.foreignColumns?.map(driver.escapeId).join(", ")})`

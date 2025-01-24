@@ -1,10 +1,10 @@
-import { escapeIdentity, escapeSqlValue } from "@/drivers/sqlite/sql-helper";
 import {
   DatabaseTableColumn,
   DatabaseTableColumnConstraint,
   DatabaseTableSchemaChange,
 } from "@/drivers/base-driver";
-import { omit, isEqual } from "lodash";
+import { escapeIdentity, escapeSqlValue } from "@/drivers/sqlite/sql-helper";
+import { isEqual, omit } from "lodash";
 
 function wrapParen(str: string) {
   if (str.length >= 2 && str.startsWith("(") && str.endsWith(")")) return str;
@@ -108,6 +108,7 @@ function generateConstraintScript(con: DatabaseTableColumnConstraint) {
     return `CHECK (${con.checkExpression})`;
   } else if (con.foreignKey) {
     return (
+      `CONSTRAINT ${escapeIdentity(con.name ?? `fk_`)} ` +
       `FOREIGN KEY (${con.foreignKey.columns?.map(escapeIdentity).join(", ")}) ` +
       `REFERENCES ${escapeIdentity(con.foreignKey.foreignTableName ?? "")} ` +
       `(${con.foreignKey.foreignColumns?.map(escapeIdentity).join(", ")})`

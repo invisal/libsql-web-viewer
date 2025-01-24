@@ -1,5 +1,7 @@
 "use client";
+import { Icon } from "@phosphor-icons/react";
 import { noop } from "lodash";
+import { Loader } from "lucide-react";
 import {
   PropsWithChildren,
   ReactElement,
@@ -8,6 +10,8 @@ import {
   useContext,
   useState,
 } from "react";
+import CodePreview from "../gui/code-preview";
+import { Button } from "../ui/button";
 import {
   Dialog,
   DialogContent,
@@ -16,10 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
-import { Button } from "../ui/button";
-import { Icon } from "@phosphor-icons/react";
-import { Loader } from "lucide-react";
-import CodePreview from "../gui/code-preview";
 
 interface ShowDialogProps {
   title: string;
@@ -55,8 +55,13 @@ export function CommonDialogProvider({ children }: PropsWithChildren) {
     setDialogOption(null);
   }, []);
 
+  const showDialog = useCallback((option: ShowDialogProps) => {
+    setDialogOption(option);
+    setErrorMessage("");
+  }, []);
+
   return (
-    <CommonDialogContext.Provider value={{ showDialog: setDialogOption }}>
+    <CommonDialogContext.Provider value={{ showDialog }}>
       {children}
       {dialogOption && (
         <Dialog

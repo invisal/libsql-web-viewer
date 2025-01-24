@@ -1,4 +1,27 @@
-import { Dispatch, SetStateAction, useCallback, useMemo } from "react";
+// import { useCommonDialog } from "@/components/common-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useDatabaseDriver } from "@/context/driver-provider";
+import { useSchema } from "@/context/schema-provider";
+import {
+  DatabaseTableColumn,
+  DatabaseTableColumnConstraint,
+  DatabaseTableSchemaChange,
+} from "@/drivers/base-driver";
+import { checkSchemaColumnChange } from "@/lib/sql/sql-generate.schema";
+import { cn } from "@/lib/utils";
+import { DndContext, DragEndEvent } from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Key } from "@phosphor-icons/react";
+import { produce } from "immer";
+import { LucidePlus, LucideTrash2, PlusIcon } from "lucide-react";
+import { Dispatch, SetStateAction, useCallback, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,7 +30,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../ui/dropdown-menu";
-import { LucidePlus, LucideTrash2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -15,34 +37,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../ui/select";
-import { CSS } from "@dnd-kit/utilities";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Toolbar, ToolbarButton, ToolbarSeparator } from "../toolbar";
+import ColumnCheckPopup from "./column-check-popup";
+import ColumnCollation from "./column-collation";
 import ColumnDefaultValueInput from "./column-default-value-input";
-import {
-  DatabaseTableColumn,
-  DatabaseTableColumnChange,
-  DatabaseTableColumnConstraint,
-  DatabaseTableSchemaChange,
-} from "@/drivers/base-driver";
-import { cn } from "@/lib/utils";
-import ColumnPrimaryKeyPopup from "./column-pk-popup";
-import ColumnUniquePopup from "./column-unique-popup";
 import ColumnForeignKeyPopup from "./column-fk-popup";
 import ColumnGeneratingPopup from "./column-generate-popup";
-import ColumnCheckPopup from "./column-check-popup";
-import { Button } from "@/components/ui/button";
-import { DndContext, DragEndEvent } from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import { useDatabaseDriver } from "@/context/driver-provider";
 import ColumnTypeSelector from "./column-type-selector";
-import ColumnCollation from "./column-collation";
-import { checkSchemaColumnChange } from "@/lib/sql/sql-generate.schema";
+import ColumnUniquePopup from "./column-unique-popup";
+import { SchemaEditorForeignKey } from "./schema-editor-foreign-key";
+import { useSchemaEditorContext } from "./schema-editor-prodiver";
 
 export type ColumnChangeEvent = (
   newValue: Partial<DatabaseTableColumn> | null
@@ -58,40 +62,21 @@ function changeColumnOnIndex(
   onChange: Dispatch<SetStateAction<DatabaseTableSchemaChange>>
 ) {
   onChange((prev) => {
-    if (prev) {
-      const columns = [...(prev?.columns ?? [])];
-      const currentCell = columns[idx] as DatabaseTableColumnChange;
-
-      if (currentCell.new) {
-        currentCell.new =
-          value === null
-            ? null
-            : {
-                ...currentCell.new,
-                ...value,
-                constraint: value?.constraint
-                  ? {
-                      ...currentCell.new?.constraint,
-                      ...value?.constraint,
-                    }
-                  : currentCell.new?.constraint,
-              };
-
-        if (!currentCell.new && !currentCell.old) {
-          // remove the column
-          return {
-            ...prev,
-            columns: columns.filter((_, colIdx) => colIdx !== idx),
-          };
-        }
-
-        return {
-          ...prev,
-          columns,
+    return produce(prev, (draft) => {
+      const currentColumn = draft.columns[idx];
+      if (currentColumn.new) {
+        currentColumn.new = {
+          ...currentColumn.new,
+          ...value,
+          constraint: value?.constraint
+            ? {
+                ...currentColumn.new.constraint,
+                ...value.constraint,
+              }
+            : currentColumn.new.constraint,
         };
       }
-    }
-    return prev;
+    });
   });
 }
 
@@ -105,6 +90,7 @@ function ColumnItemType({
   disabled?: boolean;
 }) {
   const { databaseDriver } = useDatabaseDriver();
+  const { suggestion } = useSchemaEditorContext();
 
   if (
     databaseDriver.columnTypeSelector.type === "dropdown" &&
@@ -120,12 +106,16 @@ function ColumnItemType({
         onValueChange={onChange}
         disabled={disabled}
       >
-        <SelectTrigger className="bg-inherit border-0 rounded-none shadow-none text-sm">
+        <SelectTrigger className="rounded-none border-0 bg-inherit text-sm shadow-none">
           <SelectValue placeholder="Select datatype" />
         </SelectTrigger>
         <SelectContent>
-          {databaseDriver.columnTypeSelector.dropdownOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
+          {suggestion.dropdownOptions?.map((option) => (
+            <SelectItem
+              key={option.value}
+              value={option.value}
+              className="bg-inherit"
+            >
               {option.text}
             </SelectItem>
           ))}
@@ -138,26 +128,30 @@ function ColumnItemType({
     <ColumnTypeSelector
       onChange={onChange}
       value={value}
-      suggestions={databaseDriver.columnTypeSelector.typeSuggestions ?? []}
+      suggestions={suggestion.typeSuggestions ?? []}
     />
   );
 }
 
 function ColumnItem({
-  value,
+  schema,
+  selected,
+  onSelectChange,
   idx,
   schemaName,
   onChange,
-  options,
   disabledEditExistingColumn,
 }: {
-  value: DatabaseTableColumnChange;
+  selected?: boolean;
+  onSelectChange: (selected: boolean) => void;
+  schema: DatabaseTableSchemaChange;
   idx: number;
   schemaName?: string;
   onChange: Dispatch<SetStateAction<DatabaseTableSchemaChange>>;
   disabledEditExistingColumn?: boolean;
-  options: SchemaEditorOptions;
 }) {
+  const value = schema.columns[idx]!;
+
   const {
     setNodeRef,
     attributes,
@@ -173,6 +167,10 @@ function ColumnItem({
     transition,
   };
 
+  const { collations } = useSchemaEditorContext();
+
+  const supportCollation = collations && collations.length > 0;
+
   const change = useCallback(
     (newValue: Partial<DatabaseTableColumn> | null) => {
       changeColumnOnIndex(idx, newValue, onChange);
@@ -183,13 +181,28 @@ function ColumnItem({
   const column = value.new || value.old;
   if (!column) return null;
 
-  let highlightClassName = "";
+  const isPrimaryKey = schema.constraints.some((constraint) => {
+    return (constraint.new ?? constraint.old)?.primaryColumns?.includes(
+      column.name
+    );
+  });
+
+  const isForeignKey = schema.constraints.some((constraint) => {
+    return (constraint.new ?? constraint.old)?.foreignKey?.columns?.includes(
+      column.name
+    );
+  });
+
+  let rowBackgroundColor = "bg-background";
+
   if (value.new === null) {
-    highlightClassName = "bg-red-400 dark:bg-red-800";
-  } else if (value.old === null) {
-    highlightClassName = "bg-green-500 dark:bg-green-800";
-  } else if (checkSchemaColumnChange(value)) {
-    highlightClassName = "bg-yellow-400";
+    rowBackgroundColor = "bg-red-100 dark:bg-red-400 dark:text-black";
+  } else if (schema.name.old && value.old === null) {
+    rowBackgroundColor = "bg-green-100 dark:bg-green-400 dark:text-black";
+  } else if (schema.name.old && checkSchemaColumnChange(value)) {
+    rowBackgroundColor = "bg-yellow-100 dark:bg-yellow-400 dark:text-black";
+  } else if (selected) {
+    rowBackgroundColor = "bg-gray-100";
   }
 
   return (
@@ -197,33 +210,52 @@ function ColumnItem({
       style={style}
       {...attributes}
       ref={setNodeRef}
-      className={
-        value.new === null
-          ? "bg-red-100 dark:bg-red-400 dark:text-black"
-          : "bg-background"
-      }
+      className={rowBackgroundColor}
     >
       <td
         ref={setActivatorNodeRef}
         {...listeners}
-        className={cn("border-l border-t border-b")}
+        className={cn(
+          "border-b border-r border-t bg-muted text-center font-mono text-sm"
+        )}
       >
-        <div
-          className={cn("w-[12px] h-[30px] ml-1 rounded", highlightClassName)}
-        ></div>
+        <div className="flex items-center justify-end gap-1 pr-2">
+          {isPrimaryKey ? (
+            <Key className="h-4 w-4 text-green-600" weight="duotone" />
+          ) : (
+            ""
+          )}
+          {isForeignKey ? (
+            <Key className="h-4 w-4 text-purple-600" weight="duotone" />
+          ) : (
+            ""
+          )}
+          {idx + 1}
+        </div>
       </td>
-      <td className="border-r border-t border-b">
+
+      <td
+        className={cn("border-b border-r border-t px-2")}
+        onClick={() => onSelectChange(!selected)}
+      >
+        <div className="flex h-[38px] items-center justify-center">
+          <Checkbox checked={selected} />
+        </div>
+      </td>
+      <td className="border-b border-r border-t">
         <input
           value={column.name}
           onChange={(e) => change({ name: e.currentTarget.value })}
-          className="p-2 text-sm outline-none w-[150px] bg-inherit"
+          className="w-[150px] bg-inherit p-2 font-mono text-sm outline-none"
           spellCheck={false}
         />
       </td>
       <td className="border">
         <ColumnItemType
           value={column.type}
-          onChange={(newType) => change({ type: newType })}
+          onChange={(newType) => {
+            change({ type: newType });
+          }}
           disabled={disabled}
         />
       </td>
@@ -236,7 +268,7 @@ function ColumnItem({
           disabled={disabled}
         />
       </td>
-      <td className="border text-center w-[50px]">
+      <td className="w-[50px] border text-center">
         <Checkbox
           disabled={disabled}
           checked={!column.constraint?.notNull}
@@ -247,14 +279,6 @@ function ColumnItem({
       </td>
       <td className="border px-2">
         <div className="flex gap-2">
-          {column.constraint?.primaryKey && (
-            <ColumnPrimaryKeyPopup
-              constraint={column.constraint}
-              disabled={disabled}
-              onChange={change}
-            />
-          )}
-
           {column.constraint?.unique && (
             <ColumnUniquePopup
               constraint={column.constraint}
@@ -290,8 +314,8 @@ function ColumnItem({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="p-1 shadow border rounded">
-                <LucidePlus className="w-4 h-4" />
+              <button className="rounded border p-1 shadow">
+                <LucidePlus className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -359,7 +383,7 @@ function ColumnItem({
           </DropdownMenu>
         </div>
       </td>
-      {options.collations.length > 0 && (
+      {supportCollation && (
         <td className="border">
           <ColumnCollation
             value={column.constraint?.collate}
@@ -374,36 +398,33 @@ function ColumnItem({
           />
         </td>
       )}
-      <td className="px-1 border">
-        <button
-          className="p-1"
-          onClick={() => {
-            change(null);
-          }}
-        >
-          <LucideTrash2 className="w-4 h-4 text-red-500" />
-        </button>
-      </td>
     </tr>
   );
 }
 
 export default function SchemaEditorColumnList({
-  columns,
+  value,
   onChange,
-  schemaName,
   onAddColumn,
   disabledEditExistingColumn,
-  options,
 }: Readonly<{
-  columns: DatabaseTableColumnChange[];
+  value: DatabaseTableSchemaChange;
   onChange: Dispatch<SetStateAction<DatabaseTableSchemaChange>>;
-  schemaName?: string;
   onAddColumn: () => void;
   disabledEditExistingColumn?: boolean;
-  options: SchemaEditorOptions;
 }>) {
-  const headerStyle = "text-xs p-2 text-left bg-secondary border";
+  const { currentSchemaName } = useSchema();
+  const headerStyle = "text-xs p-2 text-left border-x font-mono";
+
+  const columns = value.columns;
+  const schemaName = value.schemaName;
+
+  const { collations } = useSchemaEditorContext();
+
+  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [showForeignKey, setShowForeignKey] = useState(false);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -426,44 +447,192 @@ export default function SchemaEditorColumnList({
     [columns, onChange]
   );
 
-  const headerCounter = useMemo(() => {
-    let initialCounter = 7;
-    if (options.collations.length > 0) {
-      initialCounter++;
-    }
+  const onRemoveColumns = useCallback(() => {
+    onChange((prev) => {
+      return produce(prev, (draft) => {
+        // If it is a new column, we can just remove it without
+        // showing the red highlight
+        draft.columns = draft.columns.filter((col) => {
+          if (selectedColumns.has(col.key) && !col.old) return false;
+          return true;
+        });
 
-    return initialCounter;
-  }, [options]);
+        // If it is an existing column, we need to show the red highlight
+        draft.columns.forEach((col) => {
+          if (selectedColumns.has(col.key) && col.old) {
+            col.new = null;
+          }
+        });
+      });
+    });
+
+    setSelectedColumns(new Set());
+  }, [selectedColumns, onChange, setSelectedColumns]);
+
+  const onSetPrimaryKey = useCallback(() => {
+    onChange((prev) => {
+      return produce(prev, (draft) => {
+        const selectColumnRefList = draft.columns.filter((c) =>
+          selectedColumns.has(c.key)
+        );
+
+        // Finding existing primary key constraint
+        const existingPrimaryKey = draft.constraints.find(
+          (c) => c.new?.primaryKey
+        )?.new;
+
+        if (existingPrimaryKey) {
+          existingPrimaryKey.primaryColumns =
+            existingPrimaryKey.primaryColumns ?? [];
+
+          for (const columnRef of selectColumnRefList) {
+            if (
+              !existingPrimaryKey.primaryColumns.includes(
+                columnRef.new?.name ?? ""
+              )
+            ) {
+              existingPrimaryKey.primaryColumns.push(columnRef.new?.name ?? "");
+            }
+          }
+        } else {
+          draft.constraints.push({
+            id: window.crypto.randomUUID(),
+            old: null,
+            new: {
+              primaryKey: true,
+              primaryColumns: selectColumnRefList.map(
+                (c) => c.new?.name ?? c.old?.name ?? ""
+              ),
+            },
+          });
+        }
+      });
+    });
+
+    setSelectedColumns(new Set());
+  }, [selectedColumns, onChange, setSelectedColumns]);
+
+  const onSetForeignKey = useCallback(() => {
+    onChange((prev) => {
+      return produce(prev, (draft) => {
+        const selectColumnRefList = draft.columns.filter((c) =>
+          selectedColumns.has(c.key)
+        );
+
+        const existingForeignKey = draft.constraints
+          .filter((c) => c.new?.foreignKey)
+          .map((c) => c.new?.foreignKey?.columns)
+          .flat();
+
+        if (existingForeignKey.length > 0) {
+          for (const columnRef of selectColumnRefList) {
+            if (!existingForeignKey.includes(columnRef.new?.name ?? "")) {
+              for (const columnRef of selectColumnRefList) {
+                draft.constraints.push({
+                  id: columnRef.key,
+                  old: null,
+                  new: {
+                    name: `fk_${columnRef.new?.name}`,
+                    foreignKey: {
+                      columns: [columnRef.new?.name ?? ""],
+                      onDelete: "CASCADE",
+                      onUpdate: "CASCADE",
+                    },
+                  },
+                });
+              }
+            }
+          }
+        } else {
+          for (const columnRef of selectColumnRefList) {
+            draft.constraints.push({
+              id: columnRef.key,
+              old: null,
+              new: {
+                name: `fk_${columnRef.new?.name}`,
+                foreignKey: {
+                  columns: [columnRef.new?.name ?? ""],
+                  foreignSchemaName: currentSchemaName,
+                },
+              },
+            });
+          }
+        }
+      });
+    });
+    setShowForeignKey(true);
+  }, [selectedColumns, onChange, currentSchemaName]);
 
   return (
-    <div className="p-4">
-      {options.collations.length > 0 && (
+    <div>
+      {collations.length > 0 && (
         <datalist id="collation-list" className="hidden">
-          {options.collations.map((collation) => (
+          {collations.map((collation) => (
             <option key={collation} value={collation} />
           ))}
         </datalist>
       )}
 
+      {showForeignKey && (
+        <SchemaEditorForeignKey
+          selectedColumns={selectedColumns}
+          constraints={value.constraints}
+          onChange={onChange}
+          onClose={() => setShowForeignKey(false)}
+        />
+      )}
+
+      <div className="border-b p-1">
+        <Toolbar>
+          <ToolbarButton
+            text="Add Column"
+            icon={<PlusIcon />}
+            onClick={onAddColumn}
+          />
+          <ToolbarButton
+            text="Remove Column"
+            icon={<LucideTrash2 />}
+            destructive
+            disabled={selectedColumns.size === 0}
+            onClick={onRemoveColumns}
+          />
+          <ToolbarSeparator />
+          <ToolbarButton
+            text="Primary Key"
+            icon={<Key />}
+            onClick={onSetPrimaryKey}
+            disabled={selectedColumns.size === 0}
+          />
+          <ToolbarButton
+            text="Foreign Key"
+            onClick={onSetForeignKey}
+            disabled={selectedColumns.size === 0}
+          />
+        </Toolbar>
+      </div>
+
       <DndContext
         onDragEnd={handleDragEnd}
         modifiers={[restrictToVerticalAxis]}
       >
-        <table className="w-full rounded overflow-hidden">
+        <table className="w-full overflow-hidden font-mono text-sm">
           <thead>
             <tr>
-              <td className={cn(headerStyle, "w-[20px]")}></td>
-              <th className={cn(headerStyle, "w-[100px]")}>Name</th>
+              <th className={cn(headerStyle, "w-[50px] bg-muted text-right")}>
+                #
+              </th>
+              <th className={cn(headerStyle, "w-[20px] border-r")}></th>
+              <th className={cn(headerStyle, "w-[100px] border-l-0")}>Name</th>
               <th className={cn(headerStyle, "w-[150px]")}>Type</th>
               <th className={cn(headerStyle, "w-[150px]")}>Default</th>
               <th className={cn(headerStyle, "w-[50px]")}>Null</th>
               <th className={cn(headerStyle)}>Constraint</th>
 
-              {options.collations.length > 0 && (
+              {collations.length > 0 && (
                 <th className={cn(headerStyle, "w-[160px]")}>Collation</th>
               )}
 
-              <th className={cn(headerStyle, "w-[30px]")}></th>
+              {/* <th className={cn(headerStyle, "w-[30px]")}></th> */}
             </tr>
           </thead>
           <tbody>
@@ -473,26 +642,27 @@ export default function SchemaEditorColumnList({
             >
               {columns.map((col, idx) => (
                 <ColumnItem
+                  selected={selectedColumns.has(col.key)}
+                  onSelectChange={(selected) => {
+                    setSelectedColumns((prev) => {
+                      if (selected) {
+                        prev.add(col.key);
+                      } else {
+                        prev.delete(col.key);
+                      }
+                      return new Set(prev);
+                    });
+                  }}
                   idx={idx}
-                  value={col}
+                  schema={value}
                   key={col.key}
                   onChange={onChange}
                   schemaName={schemaName}
                   disabledEditExistingColumn={disabledEditExistingColumn}
-                  options={options}
                 />
               ))}
             </SortableContext>
           </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={headerCounter} className="px-4 py-2 border">
-                <Button size="sm" onClick={onAddColumn}>
-                  <LucidePlus className="w-4 h-4 mr-1" /> Add Column
-                </Button>
-              </td>
-            </tr>
-          </tfoot>
         </table>
       </DndContext>
     </div>

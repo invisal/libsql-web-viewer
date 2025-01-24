@@ -2,13 +2,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
-  PopoverTrigger,
   PopoverContent,
+  PopoverTrigger,
 } from "@/components/ui/popover";
+import { DatabaseTableColumnConstraint } from "@/drivers/base-driver";
 import { ChevronsUpDown } from "lucide-react";
 import { ChangeEvent, useCallback, useMemo } from "react";
 import { Input } from "../../ui/input";
-import { DatabaseTableColumnConstraint } from "@/drivers/base-driver";
 
 export default function ColumnDefaultValueInput({
   constraint,
@@ -116,7 +116,7 @@ export default function ColumnDefaultValueInput({
   return (
     <Popover>
       <PopoverTrigger className="h-full flex w-full">
-        <div className="flex text-left px-2 py-2 text-sm h-full bg-background">
+        <div className="flex text-left px-2 py-2 text-sm h-full bg-inherit">
           <div className="grow w-[150px] overflow-hidden mr-2">
             {display || "EMPTY STRING"}
           </div>

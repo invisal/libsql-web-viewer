@@ -1,5 +1,8 @@
 {
-    "editor.formatOnSave": true,
-    "typescript.tsdk": "node_modules\\typescript\\lib",
-    "files.eol": "\n"
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "typescript.tsdk": "node_modules\\typescript\\lib",
+  "files.eol": "\n"
 }

@@ -1,11 +1,10 @@
 import OpacityLoading from "@/components/gui/loading-opacity";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDatabaseDriver } from "@/context/driver-provider";
-import SchemaSaveDialog from "../schema-editor/schema-save-dialog";
 import { DatabaseTableSchemaChange } from "@/drivers/base-driver";
-import SchemaEditor from "../schema-editor";
 import { createTableSchemaDraft } from "@/lib/sql/sql-generate.schema";
-import { cloneDeep } from "lodash";
+import { useCallback, useEffect, useState } from "react";
+import SchemaEditor from "../../schema-editor";
+import SchemaEditorToolbar from "./toolbar";
 
 interface SchemaEditorTabProps {
   tableName?: string;
@@ -32,7 +31,6 @@ export default function SchemaEditorTab({
     schemaName,
   });
   const [loading, setLoading] = useState(!!tableName);
-  const [isSaving, setIsSaving] = useState(false);
 
   const fetchTable = useCallback(
     async (schemaName: string, name: string) => {
@@ -53,35 +51,6 @@ export default function SchemaEditorTab({
     }
   }, [fetchTable, schemaName, tableName]);
 
-  const previewScript = useMemo(() => {
-    return databaseDriver.createUpdateTableSchema(schema);
-  }, [schema, databaseDriver]);
-
-  const onSaveToggle = useCallback(
-    () => setIsSaving((prev) => !prev),
-    [setIsSaving]
-  );
-
-  const onDiscard = useCallback(() => {
-    setSchema((prev) => {
-      return {
-        name: { ...prev.name, new: prev.name.old },
-        columns: prev.columns
-          .map((col) => ({
-            key: col.key,
-            old: col.old,
-            new: cloneDeep(col.old),
-          }))
-          .filter((col) => col.old),
-        constraints: prev.constraints.map((con) => ({
-          id: window.crypto.randomUUID(),
-          old: con.old,
-          new: cloneDeep(con.old),
-        })),
-      };
-    });
-  }, [setSchema]);
-
   if (loading) {
     return (
       <div>
@@ -90,22 +59,23 @@ export default function SchemaEditorTab({
     );
   }
   return (
-    <>
-      {isSaving && (
-        <SchemaSaveDialog
+    <div className="w-full h-full flex flex-col">
+      <div className="p-1 border-b">
+        <SchemaEditorToolbar
+          value={schema}
+          onChange={setSchema}
           fetchTable={fetchTable}
-          onClose={onSaveToggle}
-          schema={schema}
-          previewScript={previewScript}
         />
-      )}
+      </div>
 
       <SchemaEditor
         value={schema}
         onChange={setSchema}
-        onSave={onSaveToggle}
-        onDiscard={onDiscard}
+        dataTypeSuggestion={databaseDriver.columnTypeSelector}
+        disabledEditExistingColumn={
+          !databaseDriver.getFlags().supportModifyColumn
+        }
       />
-    </>
+    </div>
   );
 }
