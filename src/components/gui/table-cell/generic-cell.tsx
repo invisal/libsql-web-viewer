@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
-import { isLinkString } from "@/lib/validation";
-import DisplayLinkCell from "./display-link-cell";
-import { cn } from "@/lib/utils";
-import { OptimizeTableHeaderWithIndexProps } from "../table-optimized";
-import { LucideArrowUpRight, LucideLoader } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { DatabaseResultSet, DatabaseValue } from "@/drivers/base-driver";
 import { useDatabaseDriver } from "@/context/driver-provider";
+import { DatabaseResultSet, DatabaseValue } from "@/drivers/base-driver";
 import { convertDatabaseValueToString } from "@/drivers/sqlite/sql-helper";
+import { cn } from "@/lib/utils";
+import { isLinkString } from "@/lib/validation";
 import { ColumnType } from "@outerbase/sdk-transform";
+import { LucideArrowUpRight, LucideLoader } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { OptimizeTableHeaderWithIndexProps } from "../table-optimized";
+import DisplayLinkCell from "./display-link-cell";
 
 interface TableCellProps<T = unknown> {
   align?: "left" | "right";
@@ -79,7 +79,7 @@ function SnippetRow({
             </div>
             <div
               className={cn(
-                "line-clamp-1 block w-[350px] overflow-hidden text-ellipsis whitespace-nowrap font-mono text-sm",
+                "line-clamp-1 block w-[350px] overflow-hidden font-mono text-sm text-ellipsis whitespace-nowrap",
                 colorClassName
               )}
             >
@@ -108,7 +108,7 @@ function ForeignKeyColumnSnippet(props: SneakpeakProps) {
           <div className="border-b px-4 py-2">
             <strong>{props.fkTableName}</strong>
           </div>
-          <div className="max-h-[300px] grow overflow-y-auto overflow-x-hidden">
+          <div className="max-h-[300px] grow overflow-x-hidden overflow-y-auto">
             {open && <SnippetRow {...props} />}
           </div>
         </div>
@@ -143,7 +143,7 @@ function BlobCellValue({
     return (
       <div className="flex">
         <div className="mr-2 flex-col items-center justify-center">
-          <span className="inline rounded bg-blue-500 p-1 pl-2 pr-2 text-white">
+          <span className="inline rounded bg-blue-500 p-1 pr-2 pl-2 text-white">
             vec({floatArray.length})
           </span>
         </div>
@@ -159,7 +159,7 @@ function BlobCellValue({
           {prettifyBytes(bytes.subarray(0, 64))}
         </span>
         <div className="ml-2 flex-col items-center justify-center">
-          <span className="inline rounded bg-blue-500 p-1 pl-2 pr-2 text-white">
+          <span className="inline rounded bg-blue-500 p-1 pr-2 pl-2 text-white">
             {bytes.length.toLocaleString(undefined, {
               maximumFractionDigits: 0,
             })}
@@ -225,7 +225,7 @@ export default function GenericCell({
         <span
           className={cn(
             "flex-1 overflow-hidden text-ellipsis whitespace-nowrap",
-            "text-green-600 dark:text-green-500"
+            "text-green-600 dark:text-green-700"
           )}
         >
           {value}

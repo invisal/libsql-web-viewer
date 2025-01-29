@@ -1,8 +1,8 @@
-import OptimizeTableState from "./OptimizeTableState";
+import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 import { OptimizeTableHeaderWithIndexProps } from ".";
 import tableResultCellRenderer from "../table-result/render-cell";
-import { useMemo } from "react";
-import { cn } from "@/lib/utils";
+import OptimizeTableState from "./OptimizeTableState";
 
 export default function OptimizeTableCell({
   state,
@@ -34,14 +34,14 @@ export default function OptimizeTableCell({
     if (isRemoved) {
       cellBackgroundColor = "bg-red-200 dark:bg-red-800";
     } else if (isChanged) {
-      cellBackgroundColor = "bg-yellow-200 dark:bg-orange-600";
+      cellBackgroundColor = "bg-yellow-200 dark:bg-orange-800";
     } else if (isNew) {
-      cellBackgroundColor = "bg-green-200 dark:bg-green-700";
+      cellBackgroundColor = "bg-green-200 dark:bg-green-800";
     } else {
-      cellBackgroundColor = "bg-blue-100 dark:bg-sky-900";
+      cellBackgroundColor = "bg-blue-50 dark:bg-neutral-900";
     }
   } else if (isChanged) {
-    cellBackgroundColor = "bg-yellow-100 dark:bg-orange-700";
+    cellBackgroundColor = "bg-yellow-100 dark:bg-orange-900";
   } else if (isNew) {
     cellBackgroundColor = "bg-green-100 dark:bg-green-900";
   } else if (isRemoved) {

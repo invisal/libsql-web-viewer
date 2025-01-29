@@ -1,16 +1,15 @@
-import { Analytics } from "@vercel/analytics/react";
-import { Inter } from "next/font/google";
-import ThemeProvider from "@/context/theme-provider";
-import { cookies } from "next/headers";
-import { Toaster } from "@/components/ui/sonner";
-import { Fragment, PropsWithChildren } from "react";
-import Script from "next/script";
-import { cn } from "@/lib/utils";
+"use client";
 import PageTracker from "@/components/page-tracker";
-
+import { Toaster } from "@/components/ui/sonner";
+import ThemeProvider from "@/context/theme-provider";
+import { cn } from "@/lib/utils";
+import { Analytics } from "@vercel/analytics/react";
+import { getCookie } from "cookies-next";
+import { Inter } from "next/font/google";
+import Script from "next/script";
+import { Fragment, PropsWithChildren } from "react";
 const inter = Inter({ subsets: ["latin"] });
-
-export default async function ThemeLayout({
+export default function ThemeLayout({
   children,
   overrideTheme,
   disableToggle,
@@ -20,10 +19,11 @@ export default async function ThemeLayout({
   disableToggle?: boolean;
   overrideThemeVariables?: Record<string, string>;
 }>) {
-  const cookieStore = await cookies();
-  const theme =
-    overrideTheme ??
-    (cookieStore.get("theme")?.value === "dark" ? "dark" : "light");
+  const cookieTheme = getCookie("theme");
+  const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+  const theme = overrideTheme ?? cookieTheme ?? systemTheme;
   const style = overrideThemeVariables ?? {};
 
   return (
@@ -32,7 +32,10 @@ export default async function ThemeLayout({
       style={style}
       suppressHydrationWarning
     >
-      <ThemeProvider defaultTheme={theme} disableToggle={disableToggle}>
+      <ThemeProvider
+        defaultTheme={theme as "dark" | "light"}
+        disableToggle={disableToggle}
+      >
         <Fragment>{children}</Fragment>
         <Toaster />
       </ThemeProvider>
