@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 import Chart from "@/components/chart";
 import { ChartData, ChartValue } from "@/components/chart/chartTypes";

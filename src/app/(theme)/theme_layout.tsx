@@ -1,6 +1,7 @@
 "use client";
 import PageTracker from "@/components/page-tracker";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { Analytics } from "@vercel/analytics/react";
 import { ThemeProvider } from "next-themes";
 import Script from "next/script";
@@ -29,7 +30,9 @@ export default function ThemeLayout({
         enableColorScheme
         attribute="class"
       >
-        <Fragment>{children}</Fragment>
+        <TooltipProvider>
+          <Fragment>{children}</Fragment>
+        </TooltipProvider>
         <Toaster />
       </ThemeProvider>
       <Analytics />

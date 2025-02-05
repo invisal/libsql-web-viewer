@@ -28,7 +28,7 @@ const TextComponent = ({ value }: OuterbaseChartProps) => {
   markdown = markdown.replace(/~~(.*?)~~/g, "<u>$1</u>");
 
   // Line break (double space followed by a newline)
-  markdown = markdown.replace(/  \n/g, "<br>");
+  markdown = markdown.replace(/ {2}\n/g, "<br>");
   return (
     <div className="h-full w-full">
       <p
@@ -107,7 +107,7 @@ const SingleValueComponent = ({ value, data }: OuterbaseChartProps) => {
   const sizeX = 1;
   const sizeY = 1;
 
-  let style: React.CSSProperties = {
+  const style: React.CSSProperties = {
     fontSize: sizeX === 1 && sizeY === 1 ? "30px" : "60px",
     lineHeight: sizeX === 1 && sizeY === 1 ? "36px" : "68px",
   };
@@ -152,13 +152,13 @@ const TableComponent = ({ data }: OuterbaseChartProps) => {
   );
 };
 
-const ChartComponent = ({ value, data, modifier }: OuterbaseChartProps) => {
+const ChartComponent = ({ value, data }: OuterbaseChartProps) => {
   const domRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
   useEffect(() => {
     if (domRef.current) {
-      let chartInstance =
+      const chartInstance =
         echarts.getInstanceByDom(domRef.current) ||
         echarts.init(domRef.current);
       chartInstance.clear();
@@ -196,7 +196,7 @@ const ChartComponent = ({ value, data, modifier }: OuterbaseChartProps) => {
   return <div ref={domRef} className="h-full w-full"></div>;
 };
 
-export default function Chart({ value, data, modifier }: OuterbaseChartProps) {
+function ChartBody({ value, data, modifier }: OuterbaseChartProps) {
   if (value.type === "text") {
     return <TextComponent value={value} data={data} />;
   } else if (value.type === "single_value") {
@@ -206,4 +206,15 @@ export default function Chart({ value, data, modifier }: OuterbaseChartProps) {
   } else {
     return <ChartComponent value={value} data={data} modifier={modifier} />;
   }
+}
+
+export default function Chart(props: OuterbaseChartProps) {
+  return (
+    <div className="flex h-full w-full flex-col p-6">
+      <h1 className="mb-4 text-lg font-semibold">{props.value.name}</h1>
+      <div className="flex-1">
+        <ChartBody {...props} />
+      </div>
+    </div>
+  );
 }

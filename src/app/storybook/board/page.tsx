@@ -1,5 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
-import Board from "@/components/board";
 import { BoardFilterProps } from "@/components/board/board-filter-dialog";
 import { useState } from "react";
 import ReactGridLayout from "react-grid-layout";
@@ -22,11 +22,11 @@ export default function StorybookBoardPage() {
     data: { filters: [] },
   });
 
-  console.log(value);
+  // console.log(value);
 
   return (
     <div className="relative h-full w-full flex-1">
-      <Board value={value} setValue={setValue} />
+      {/* <Board value={value} setValue={setValue} /> */}
     </div>
   );
 }

@@ -1,12 +1,15 @@
 import { BoardSourceDriver } from "@/drivers/board-source/base-source";
 import { useState } from "react";
+import { ChartValue } from "../chart/chartTypes";
 import { BoardCanvas } from "./board-canvas";
 import { BoardFilter } from "./board-filter";
 import { BoardFilterProps } from "./board-filter-dialog";
 import { BoardProvider } from "./board-provider";
 
-interface DashboardProps {
+export interface DashboardProps {
+  charts: ChartValue[];
   layout: ReactGridLayout.Layout[];
+  name: string;
   data: {
     filters: BoardFilterProps[];
   };
@@ -16,9 +19,19 @@ interface Props {
   value: DashboardProps;
   sources?: BoardSourceDriver;
   setValue: (value: DashboardProps) => void;
+  interval: number;
+  setInterval: (v: number) => void;
+  onRefresh?: () => void;
 }
 
-export default function Board({ value, setValue, sources }: Props) {
+export default function Board({
+  value,
+  setValue,
+  sources,
+  interval,
+  setInterval,
+  onRefresh,
+}: Props) {
   const [editMode, setEditMode] = useState<
     "ADD_CHART" | "REARRANGING_CHART" | null
   >(null);
@@ -39,9 +52,13 @@ export default function Board({ value, setValue, sources }: Props) {
           }
           editMode={editMode}
           setEditMode={setEditMode}
+          name={value.name}
+          interval={interval}
+          setInterval={setInterval}
+          onRefresh={onRefresh}
         />
         <BoardCanvas
-          layout={value.layout}
+          value={value}
           onChange={(v) => {
             setValue({
               ...value,
@@ -49,6 +66,7 @@ export default function Board({ value, setValue, sources }: Props) {
             });
           }}
           editMode={editMode}
+          setEditMode={setEditMode}
         />
       </div>
     </BoardProvider>
