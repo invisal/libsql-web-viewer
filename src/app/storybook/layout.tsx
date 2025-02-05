@@ -54,11 +54,6 @@ export default function StorybookRootLayout({
           />
           <SidebarMenuItem
             icon={Component}
-            text="Chart"
-            href="/storybook/chart"
-          />
-          <SidebarMenuItem
-            icon={Component}
             text="Chart Editor"
             href="/storybook/chart-editor"
           />
